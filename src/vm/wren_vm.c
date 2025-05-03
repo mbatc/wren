@@ -1921,19 +1921,27 @@ void wrenRemoveMapValue(WrenVM* vm, int mapSlot, int keySlot,
   setSlot(vm, removedValueSlot, removed);
 }
 
-void wrenGetVariable(WrenVM* vm, const char* module, const char* name,
-                     int slot)
+static ObjModule * getModuleByName(WrenVM * vm, const char * module)
 {
-  ASSERT(module != NULL, "Module cannot be NULL.");
-  ASSERT(name != NULL, "Variable name cannot be NULL.");  
+  if (module == NULL)
+    return getModule(vm, NULL_VAL);
 
   Value moduleName = wrenStringFormat(vm, "$", module);
   wrenPushRoot(vm, AS_OBJ(moduleName));
-  
-  ObjModule* moduleObj = getModule(vm, moduleName);
-  ASSERT(moduleObj != NULL, "Could not find module.");
-  
+
+  // We don't use wrenHasModule since we want to use the module object.
+  ObjModule * moduleObj = getModule(vm, moduleName);
+
   wrenPopRoot(vm); // moduleName.
+
+  return moduleObj;
+}
+
+void wrenGetVariable(WrenVM* vm, const char* module, const char* name,
+                     int slot)
+{
+  ObjModule * moduleObj = getModuleByName(vm, module);
+  ASSERT(moduleObj != NULL, "Could not find module.");
 
   int variableSlot = wrenSymbolTableFind(&moduleObj->variableNames,
                                          name, strlen(name));
@@ -1944,17 +1952,10 @@ void wrenGetVariable(WrenVM* vm, const char* module, const char* name,
 
 bool wrenHasVariable(WrenVM* vm, const char* module, const char* name)
 {
-  ASSERT(module != NULL, "Module cannot be NULL.");
   ASSERT(name != NULL, "Variable name cannot be NULL.");
 
-  Value moduleName = wrenStringFormat(vm, "$", module);
-  wrenPushRoot(vm, AS_OBJ(moduleName));
-
-  //We don't use wrenHasModule since we want to use the module object.
-  ObjModule* moduleObj = getModule(vm, moduleName);
+  ObjModule * moduleObj = getModuleByName(vm, module);
   ASSERT(moduleObj != NULL, "Could not find module.");
-
-  wrenPopRoot(vm); // moduleName.
 
   int variableSlot = wrenSymbolTableFind(&moduleObj->variableNames,
     name, strlen(name));
@@ -1964,16 +1965,7 @@ bool wrenHasVariable(WrenVM* vm, const char* module, const char* name)
 
 bool wrenHasModule(WrenVM* vm, const char* module)
 {
-  ASSERT(module != NULL, "Module cannot be NULL.");
-  
-  Value moduleName = wrenStringFormat(vm, "$", module);
-  wrenPushRoot(vm, AS_OBJ(moduleName));
-
-  ObjModule* moduleObj = getModule(vm, moduleName);
-  
-  wrenPopRoot(vm); // moduleName.
-
-  return moduleObj != NULL;
+  return getModuleByName(vm, module) != NULL;
 }
 
 void wrenAbortFiber(WrenVM* vm, int slot)
